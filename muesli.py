@@ -19,10 +19,14 @@ import re
 import ctypes
 import shutil
 import sys
+import platform
 import importlib.util
 import urllib.request
 import urllib.error
 import uuid
+
+IS_WIN = platform.system() == "Windows"
+IS_MAC = platform.system() == "Darwin"
 
 try:
     import sounddevice as sd
@@ -127,7 +131,7 @@ def _get_shared_dir():
     local_shared = os.path.join(os.path.expanduser("~"), "Documents", "MuesliData", "analytics", "audio")
     default_shared = (
         local_shared
-        if os.name == "nt" else
+        if IS_WIN or IS_MAC else
         "/srv/muesli"
     )
     d = cfg.get("shared_dir", default_shared)
@@ -547,7 +551,7 @@ def _whisper_candidates(prefer_cpu=False):
     force_device = cfg.get("whisper_device", "auto")
     candidates = []
 
-    allow_cuda = not prefer_cpu and force_device in ("auto", "cuda")
+    allow_cuda = not prefer_cpu and not IS_MAC and force_device in ("auto", "cuda")
     if allow_cuda:
         _prepare_windows_cuda_runtime()
         candidates.append((model_name, "cuda", "float16"))

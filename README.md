@@ -11,13 +11,13 @@ It can:
 - process existing audio files in batch
 - write sidecar `.txt` and `.silent` files for downstream tooling
 
-The current repo is Windows-first, but the core Python code also runs on Linux with the right audio and model dependencies.
+The current repo is Windows-first, but the core Python code also runs on macOS and Linux with the right audio and model dependencies.
 
 ![Muesli screenshot](assets/muesli-screenshot.png)
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 
 ## Why This Repo Exists
 
@@ -98,6 +98,30 @@ After setup, launch the app with the desktop shortcut or run:
 ```powershell
 .venv\Scripts\python.exe muesli_gui.py
 ```
+
+### macOS
+
+Requires [Homebrew](https://brew.sh) and Python 3.10+.
+
+```bash
+git clone https://github.com/joshwhitk/Muesli.git
+cd Muesli
+bash setup_macos.sh
+```
+
+That script installs `ffmpeg` and `portaudio` via Homebrew, creates a `.venv`, and installs Python dependencies.
+
+After setup, launch the app:
+
+```bash
+source .venv/bin/activate
+python muesli_gui.py
+```
+
+macOS notes:
+- The OS will prompt for microphone permission on the first recording.
+- Transcription runs on CPU (the `fast` Whisper model is recommended for speed).
+- The global hotkey agent is Windows-only; use `Ctrl+R` inside the app to start/stop recording.
 
 ### Linux
 

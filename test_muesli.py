@@ -624,23 +624,24 @@ check("shortcut refresh writes desktop and record launchers through the GUI wrap
       'muesli_gui_launcher.vbs' in shortcut_script and
       'Write-Shortcut -Path $desktop -TargetPath $wscript' in shortcut_script and
       'Write-Shortcut -Path $recordShortcut -TargetPath $wscript' in shortcut_script)
-script_run = subprocess.run(
-    [
-        "powershell",
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        os.path.join(os.path.dirname(__file__), "refresh_windows_shortcuts.ps1"),
-        "-DryRun",
-        "-SkipHotkeyRestart",
-    ],
-    capture_output=True,
-    text=True,
-)
-check("shortcut refresh script parses and runs in DryRun mode",
-      script_run.returncode == 0,
-      detail=(script_run.stderr or script_run.stdout or "").strip()[:240])
+if sys.platform == "win32":
+    script_run = subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            os.path.join(os.path.dirname(__file__), "refresh_windows_shortcuts.ps1"),
+            "-DryRun",
+            "-SkipHotkeyRestart",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    check("shortcut refresh script parses and runs in DryRun mode",
+          script_run.returncode == 0,
+          detail=(script_run.stderr or script_run.stdout or "").strip()[:240])
 
 print("\n[13] summary mode UI wiring")
 check("GUI exposes a summary mode bar",

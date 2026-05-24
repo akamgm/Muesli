@@ -6,6 +6,7 @@ import argparse
 import ctypes
 import csv
 import os
+import sys
 import time
 from pathlib import Path
 import wave
@@ -18,6 +19,8 @@ DEFAULT_OUTPUT = PROJECT_DIR / "outputs"
 
 
 def cuda_runtime_available() -> bool:
+    if sys.platform == "darwin":
+        return False
     if os.name != "nt":
         return True
     try:

@@ -66,6 +66,7 @@ _WIN_ERROR_ALREADY_EXISTS = 183
 _single_instance_handle = None
 
 IS_WIN = platform.system() == "Windows"
+IS_MAC = platform.system() == "Darwin"
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 APP_DIR      = os.environ.get("MUESLI_HOME") or os.path.dirname(os.path.abspath(__file__))
@@ -243,19 +244,25 @@ def set_processing_paused(paused):
 
 
 def _pid_alive(pid):
-    if not IS_WIN:
-        return False
     try:
         pid = int(pid or 0)
     except (TypeError, ValueError):
         return False
     if pid <= 0:
         return False
-    handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
-    if not handle:
+    if IS_WIN:
+        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return False
+        ctypes.windll.kernel32.CloseHandle(handle)
+        return True
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
         return False
-    ctypes.windll.kernel32.CloseHandle(handle)
-    return True
+    except PermissionError:
+        return True
 
 
 def _acquire_single_instance():
@@ -1148,7 +1155,7 @@ def open_settings_dialog(master):
 _LOCAL_SHARED = os.path.join(os.path.expanduser("~"), "Documents", "MuesliData", "analytics", "audio")
 _DEFAULT_SHARED = (
     _LOCAL_SHARED
-    if IS_WIN else
+    if IS_WIN or IS_MAC else
     "/srv/muesli"
 )
 
@@ -1164,14 +1171,15 @@ def get_shared_dir():
 SHARED_DIR = _DEFAULT_SHARED
 
 def ensure_shared_dir_configured():
-    """On first Windows run, ask user to confirm or change the shared folder."""
-    if not IS_WIN:
+    """On first run (Windows/macOS), ask user to confirm or change the shared folder."""
+    if not IS_WIN and not IS_MAC:
         return
     cfg = load_config()
     if "shared_dir" not in cfg:
+        default_initial = _DEFAULT_SHARED if os.path.exists(_DEFAULT_SHARED) else os.path.expanduser("~")
         chosen = filedialog.askdirectory(
             title="Muesli shared folder (where audio and transcripts are saved)",
-            initialdir=_DEFAULT_SHARED if os.path.exists(_DEFAULT_SHARED) else "C:\\"
+            initialdir=default_initial,
         )
         if chosen:
             cfg["shared_dir"] = chosen
@@ -1343,6 +1351,8 @@ def open_file(path):
     """Open a file with the system default application."""
     if IS_WIN:
         os.startfile(path)
+    elif IS_MAC:
+        subprocess.Popen(["open", path])
     else:
         subprocess.Popen(["xdg-open", path])
 
@@ -1612,7 +1622,7 @@ def _default_whisper_candidates(prefer_cpu=False):
     force_device = cfg.get("whisper_device", "auto")
     candidates = []
 
-    allow_cuda = not prefer_cpu and force_device in ("auto", "cuda")
+    allow_cuda = not prefer_cpu and not IS_MAC and force_device in ("auto", "cuda")
     if allow_cuda:
         _prepare_windows_cuda_runtime()
         candidates.append((model_name, "cuda", "float16"))
@@ -3906,7 +3916,7 @@ class MuesliApp(tk.Tk):
         self._rec_btn.pack(side="right")
         if not self._recording_available:
             self._rec_btn.set_enabled(False)
-        RoundedButton(
+        self._pause_btn = RoundedButton(
             top,
             text="Pause Processing",
             command=self._toggle_processing_pause,
@@ -3916,8 +3926,8 @@ class MuesliApp(tk.Tk):
             active_bg=ITEM_ALT,
             shadow="#d7dde7",
             tooltip="Keep recording audio but defer Whisper and LLM work",
-        ).pack(side="right", padx=(0, 10))
-        self._pause_btn = top.winfo_children()[0]
+        )
+        self._pause_btn.pack(side="right", padx=(0, 10))
         RoundedButton(
             top,
             text="Settings",
@@ -5286,7 +5296,7 @@ if __name__ == "__main__":
             progress=20,
         )
         app = MuesliApp(launch_token=launch_token, launch_probe=launch_probe)
-        if IS_WIN:
+        if IS_WIN or IS_MAC:
             app.after(200, ensure_shared_dir_configured)
         app.mainloop()
     finally:
